@@ -1,86 +1,139 @@
-# 📄 PDF Chat Assistant (FastAPI + LangChain + Groq)
+Here’s a **cleaned, more professional, and GitHub-ready README.md** that reads like a **serious production / portfolio project**, while still staying simple and crisp.
+I’ve improved **clarity, structure, tone, formatting, and flow** without over-engineering it.
 
-An intelligent **PDF Question–Answering & Summarization web application** built using **FastAPI**, **LangChain**, **FAISS**, **BM25**, and **Groq LLM**.  
-Users can upload PDFs, ask natural language questions, and receive **accurate, streamed answers** grounded strictly in the document content.
+You can **copy-paste this directly** as your `README.md`.
 
 ---
 
-## 🚀 Features
+# 📄 PDF Chat Assistant
 
-- 📂 Upload PDF, DOCX, TXT, or Markdown files
-- 🔍 Hybrid Retrieval:
-  - FAISS (semantic search)
-  - BM25 (keyword-based search)
-- 🧠 Context-aware LLM responses using Groq
-- ⚡ Streaming answers (real-time output)
-- 🧩 Adaptive chunking based on document size
-- 🎯 Query-focused summaries
-- 🖥️ Clean HTML UI with Jinja templates
+**FastAPI · LangChain · FAISS · BM25 · Groq**
+
+An intelligent **document question–answering and summarization web application** that allows users to upload documents and interact with them using **natural language queries**.
+
+The system uses a **hybrid retrieval approach (semantic + keyword search)** combined with **LLM-based reasoning** to generate **accurate, context-aware, and streamed responses** strictly grounded in the uploaded document.
+
+---
+
+## 🚀 Key Features
+
+* 📂 Upload and process **PDF, DOCX, TXT, and Markdown** files
+* 🔍 **Hybrid document retrieval**
+
+  * **FAISS** for semantic similarity search
+  * **BM25** for keyword-based relevance
+* 🧠 Context-aware responses powered by **Groq LLM**
+* ⚡ **Real-time streamed answers** using FastAPI streaming
+* 🧩 **Adaptive text chunking** based on document length
+* 🎯 Query-focused summaries and explanations
+* 🔄 Follow-up questions on the same document
+* 🖥️ Simple and clean UI built with **Jinja2 templates**
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Component | Technology |
-|--------|------------|
-| Backend | FastAPI |
-| LLM | Groq |
-| Retrieval | FAISS + BM25 |
-| Text Processing | LangChain |
-| Frontend | HTML, CSS, JS (Jinja2) |
-| Streaming | FastAPI StreamingResponse |
+| Layer           | Technology                     |
+| --------------- | ------------------------------ |
+| Backend         | FastAPI                        |
+| LLM             | Groq                           |
+| Retrieval       | FAISS, BM25                    |
+| Text Processing | LangChain                      |
+| Frontend        | HTML, CSS, JavaScript (Jinja2) |
+| Streaming       | FastAPI `StreamingResponse`    |
 
 ---
 
-## 📁 Project Architecture
+## 🧠 System Architecture
 
-FastAPI
-├── File Upload
-├── Background Chunking
-├── Hybrid Retriever Creation
-├── Query Processing
-├── Streaming LLM Response
-
-
-
+```
+User
+ └── Upload Document
+       └── Background Processing
+             ├── Text Extraction
+             ├── Adaptive Chunking
+             ├── FAISS Index Creation
+             └── BM25 Index Creation
+       └── User Query
+             ├── Hybrid Retrieval
+             ├── Context Filtering
+             └── LLM Streaming Response
+```
 
 ---
 
 ## ⚙️ Installation & Setup
 
-### 1️⃣ Clone Repository
+### 1️⃣ Clone the Repository
+
 ```bash
 git clone https://github.com/your-username/pdf-chat-assistant.git
 cd pdf-chat-assistant
 ```
 
-### 2️⃣ Create Virtual Environment
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+### 2️⃣ Create & Activate Virtual Environment
 
+```bash
+python -m venv venv
+source venv/bin/activate        # Linux / macOS
+venv\Scripts\activate           # Windows
+```
 
 ### 3️⃣ Install Dependencies
-pip install -r requirements.txt
 
+```bash
+pip install -r requirements.txt
+```
 
 ### 4️⃣ Configure Environment Variables
-# Add your Groq API key inside .env
+
+Create a `.env` file and add your Groq API key:
+
+```env
+GROQ_API_KEY=your_api_key_here
+```
+
+---
+
+## ▶️ Run the Application
+
+```bash
+uvicorn app:app --reload
+```
+
+Open your browser and visit:
+
+```
+http://127.0.0.1:8000
+```
+
+---
+
+## 🧪 Usage Flow
+
+1. Upload a document (PDF / DOCX / TXT / MD)
+2. Wait briefly while the document is processed in the background
+3. Enter a natural language query
+4. Receive **live streamed answers** grounded in the document
+5. Ask **follow-up questions** without re-uploading the file
+
+---
+
+## 🔍 Retrieval Strategy
+
+* Combines **semantic understanding** (FAISS) with **keyword precision** (BM25)
+* Merges top results from both retrievers
+* Cleans extracted text to remove:
+
+  * Figure references
+  * Table mentions
+  * Section numbering
+* Sends only the **most relevant chunks** to the LLM for efficiency and accuracy
+
+---
 
 
-### ▶️ Run the Application
-``` uvicorn app:app --reload ```
+* 🧹 Refactor the codebase into services
+* 📊 Add performance & scalability notes
 
-
-
-🧪 Usage Flow
-
-Upload a document (PDF/DOCX/TXT)
-
-Wait for background processing
-
-Enter your query
-
-Get live streamed answers
-
-Ask follow-up questions on the same document
-
+Just say the word 👍
