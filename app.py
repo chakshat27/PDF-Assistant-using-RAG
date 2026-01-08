@@ -1,169 +1,259 @@
-import streamlit as st
-from PyPDF2 import PdfReader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.chains import RetrievalQA
-from langchain.prompts import PromptTemplatea
-from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
+from fastapi import FastAPI, Request, UploadFile, File, Form, BackgroundTasks
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
 from pathlib import Path
-import hashlib
-import time
-import nest_asyncio
-import logging
-import traceback
+import asyncio, os, time
+import re
+from langchain.vectorstores import FAISS
+from langchain.retrievers import BM25Retriever
+from langchain.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
+from langchain.text_splitter import CharacterTextSplitter
+from groq import Groq
+from config import EMBEDDINGS_MODEL, DATA_DIR, TEMPLATES_DIR, GROQ_API_KEY, MODEL_NAME, CHUNK_LIMITS
 
-nest_asyncio.apply()
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from fastapi.staticfiles import StaticFiles
 
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-VECTORSTORE_DIR = Path("./vectorstore")
-VECTORSTORE_DIR.mkdir(exist_ok=True)
 
-# Smaller timeout to avoid long stalls
-embeddings_model = GoogleGenerativeAIEmbeddings(
-    model="models/embedding-001",
-    google_api_key=GOOGLE_API_KEY,
-    request_options={'timeout': 60}
+# --------------- FASTAPI SETUP ---------------
+app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-def create_llm():
-    return ChatGoogleGenerativeAI(
-        model="models/gemini-2.5-pro",
-        google_api_key=GOOGLE_API_KEY,
-        request_options={'timeout': 60}
-    )
+# --------------- GLOBAL STORES ---------------
+retriever_store = {}
+query_store = {}
+summary_chunks_store = {}
 
-prompt_template = PromptTemplate.from_template("""
-You are a helpful assistant answering based on the content of uploaded PDFs.
+# --------------- LLM CLIENT ------------------
+client = Groq(api_key=GROQ_API_KEY)
 
-Context:
-{context}
 
-Question:
-{question}
+# ---------------- HOME PAGE ------------------
+@app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    return templates.TemplateResponse("get_pdf.html", {"request": request})
 
-Answer:
-""")
 
-st.title("📄 PDF Q/A using RAG")
+# ---------------- UPLOAD HANDLER ------------------
+@app.post("/get_pdf")
+async def process_file(
+    file_upload: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks()
+):
+    os.makedirs(DATA_DIR, exist_ok=True)
+    save_path = os.path.join(DATA_DIR, file_upload.filename)
 
-uploaded_files = st.file_uploader("Upload one or more PDFs", type="pdf", accept_multiple_files=True)
-query = st.text_input("Enter your question")
+    # Save uploaded file
+    with open(save_path, "wb") as f:
+        content = await file_upload.read()
+        f.write(content)
 
-def generate_pdf_hash(file_bytes):
-    return hashlib.md5(file_bytes).hexdigest()
+    # 🔹 Clear old state for this file (if re-uploaded)
+    file_name = file_upload.filename
+    retriever_store.pop(file_name, None)
+    query_store.pop(file_name, None)
+    summary_chunks_store.pop(file_name, None)
 
-def load_pdf_text(uploaded_file):
-    uploaded_file.seek(0)
-    text = ""
-    pdf_reader = PdfReader(uploaded_file)
-    for page in pdf_reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text
-    return text
+    # Launch background retriever creation
+    background_tasks.add_task(process_and_split, save_path)
 
-def split_text(text):
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=50,
-        length_function=len
-    )
-    return splitter.split_text(text)
+    # Redirect to query input page
+    return RedirectResponse(f"/get_user_query?file_name={file_upload.filename}", status_code=302)
 
-def create_vectorstore_from_texts(texts):
-    st.info("Embeddings...")
-    all_embeddings = []
-    for chunk in texts:
-        try:
-            emb = embeddings_model.embed_documents([chunk])
-        except Exception as e:
-            st.error(f"Embedding failed: {e}")
-            st.stop()
-        all_embeddings.extend(emb)
-        time.sleep(0.2)
-    return FAISS.from_embeddings(
-        text_embeddings=list(zip(texts, all_embeddings)),
-        embedding=embeddings_model
-    )
 
-def load_chain(vectordb):
-    llm = create_llm()
-    retriever = vectordb.as_retriever(search_kwargs={"k": 3})
-    return RetrievalQA.from_chain_type(
-        llm=llm,
-        chain_type="stuff",
-        retriever=retriever,
-        return_source_documents=True,
-        chain_type_kwargs={"prompt": prompt_template}
-    )
+# ---------------- QUERY INPUT PAGE ------------------
+@app.get("/get_user_query", response_class=HTMLResponse)
+def get_user_query(request: Request):
+    file_name = request.query_params.get("file_name", "")
+    return templates.TemplateResponse("get_query.html", {"request": request, "file_name": file_name})
 
-if st.button("Get Answer"):
-    if uploaded_files and query:
-        all_vectorstores = []
 
-        for uploaded_file in uploaded_files:
-            file_bytes = uploaded_file.read()
-            file_hash = generate_pdf_hash(file_bytes)
-            uploaded_file.seek(0)
+# ---------------- QUERY SUBMISSION ------------------
+@app.post("/get_user_query", response_class=HTMLResponse)
+async def user_query(
+    request: Request,
+    query: str = Form(...),
+    file_name: str = Form(...)
+):
+    print(f"[LOG] Query received for file: {file_name}")
 
-            db_path = VECTORSTORE_DIR / f"db_faiss_{file_hash}"
+    retrievers = retriever_store.get(file_name)
+    query_store[file_name] = query
 
-            if db_path.exists():
-                vectordb = FAISS.load_local(str(db_path), embeddings_model,
-                                            allow_dangerous_deserialization=True)
-            else:
-                st.info("Extracting text...")
-                text = load_pdf_text(uploaded_file)
-                if not text.strip():
-                    st.warning("No text extracted, skipping.")
-                    continue
+    if not retrievers:
+        return {"error": "Retriever not ready yet. Please wait and try again."}
 
-                st.info("Splitting text...")
-                docs = split_text(text)
+    faiss_retriever, bm25_retriever = retrievers
 
-                st.info("Creating vector store...")
-                vectordb = create_vectorstore_from_texts(docs)
-                vectordb.save_local(str(db_path))
-                st.success("Vector store created.")
+    faiss_docs = faiss_retriever.get_relevant_documents(query)
+    bm25_docs = bm25_retriever.get_relevant_documents(query)
+    chunks = [doc.page_content for doc in faiss_docs + bm25_docs]
 
-            all_vectorstores.append(vectordb)
+    summary_chunks_store[file_name] = chunks
 
-        if not all_vectorstores:
-            st.error("No valid vector stores created.")
-            st.stop()
+    return templates.TemplateResponse("result.html", {
+        "request": request,
+        "file_name": file_name,
+        "query": query
+    })
 
-        combined_vectorstore = all_vectorstores[0]
-        for store in all_vectorstores[1:]:
-            combined_vectorstore.merge_from(store)
 
-        st.info("Generating answer...")
-        try:
-            qa_chain = load_chain(combined_vectorstore)
-            result = qa_chain({"query": query})
-            st.subheader("Answer:")
-            st.write(result["result"])
-            with st.expander("Sources"):
-                for i, doc in enumerate(result["source_documents"]):
-                    st.markdown(f"**Source {i+1}:**")
-                    st.caption(doc.page_content)
-        except Exception:
-            st.error(f"Error during LLM call:\n{traceback.format_exc()}")
+# ---------------- STREAM SUMMARY ------------------
+@app.get("/stream_summary")
+async def stream_summary(file_name: str):
+    chunks = summary_chunks_store.get(file_name)
+    if not chunks:
+        return {"error": "No chunks found for this file."}
 
+    query = query_store.get(file_name)
+    if not query:
+        return {"error": "Query not found. Please submit first."}
+
+    summary = await gen_llm_summary(chunks, query)
+    return summary
+
+
+# ----------------- PROCESS AND SPLIT -----------------
+def make_docs(file_path):
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == ".pdf":
+        loader = PyPDFLoader(file_path)
+    elif ext == ".docx":
+        loader = Docx2txtLoader(file_path)
+    elif ext in [".txt", ".md"]:
+        loader = TextLoader(file_path)
     else:
-        st.warning("Please upload PDFs and enter a question.")
+        raise ValueError(f"Unsupported file extension: {ext}")
+    
+    return loader.load()
+
+
+async def process_and_split(file_path):
+    docs = make_docs(file_path)
+    total_pages = len(docs)
+
+    # Adaptive chunking
+    for limit, size, overlap in CHUNK_LIMITS:
+        if total_pages <= limit:
+            chunk_size, chunk_overlap = size, overlap
+            break
+
+    splitter = CharacterTextSplitter(
+        separator="\n",
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap
+    )
+
+    chunks = splitter.split_documents(docs)
+    filename = os.path.basename(file_path)
+
+    faiss_retriever, bm25_retriever = await build_retrievers(chunks)
+    retriever_store[filename] = (faiss_retriever, bm25_retriever)
+
+    print(f"[LOG] Finished building retrievers for {filename}")
+
+
+# ----------------- BUILD RETRIEVERS -----------------
+async def build_retrievers(chunks):
+    start = time.time()
+
+    faiss_task = asyncio.to_thread(FAISS.from_documents, chunks, EMBEDDINGS_MODEL)
+    bm25_task = asyncio.to_thread(BM25Retriever.from_documents, chunks)
+
+    vectorstore, bm25_retriever = await asyncio.gather(faiss_task, bm25_task)
+
+    print(f"[LOG] Vectorstore built in {time.time() - start:.2f}s")
+    return vectorstore.as_retriever(search_kwargs={"k": 2}), bm25_retriever
+
+
+# ----------------- LLM SUMMARY -----------------
+async def gen_llm_summary(docs, query):
+    # Combine limited chunks
+    combined_text = " ".join(docs[:15])
+
+    # 🔹 Clean unwanted patterns (figure refs, table mentions, etc.)
+    patterns_to_remove = [
+        r'Figure\s?\d+',
+        r'Table\s?[IVXLC\d]+',
+        r'Section\s?\d+',
+        r'Algorithm\s?\d+',
+        r'References',
+        r'©\s?\d{4}',   # e.g., © 2023
+    ]
+    for pattern in patterns_to_remove:
+        combined_text = re.sub(pattern, '', combined_text, flags=re.IGNORECASE)
+
+
+
+    # summarization prompt
+    prompt = f"""
+
+You are an intelligent, context-aware assistant analyzing the text extracted from a PDF.
+
+Step 1 — Carefully read the provided document text below.
+
+Step 2 — Identify the user’s intent from the query: "{query}".
+- If the query asks for a something specific, give a **direct and minimal answer** , drawn precisely from the document text.
+- If the query asks for a **summary, explanation, or analysis**, 
+  then provide a **comprehensive yet concise** explanation or overview that covers all key points clearly.
+
+Step 3 — Keep your tone natural and human. 
+Avoid mentioning figure numbers, section titles, or unrelated context. 
+If there is insufficient detail to answer confidently, say so without guessing.
+
+Do NOT include word counts, metadata, or any trailing symbols like "(≈115 words)".
+There is no strict word limit, but prefer clarity and precision.
+
+Content:
+{combined_text}
+"""
+    
+
+
+
+
+    # 🔹 Call LLM with stream
+    completion = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        stream=True
+    )
+
+    async def generator():
+        for chunk in completion:
+            text = chunk.choices[0].delta.content or ""
+            yield text
+
+    return StreamingResponse(generator(), media_type="text/plain")
 
 
 
 
 
+# ----------------- FOLLOW-UP QUERY -----------------
+@app.get("/followup_query")
+async def followup_query(file_name: str, query: str):
+    retrievers = retriever_store.get(file_name)
+    if not retrievers:
+        return {"error": "Retriever not ready for this file."}
 
+    faiss_retriever, bm25_retriever = retrievers
 
+    faiss_docs = faiss_retriever.get_relevant_documents(query)
+    bm25_docs = bm25_retriever.get_relevant_documents(query)
+    chunks = [doc.page_content for doc in faiss_docs + bm25_docs]
 
+    summary_chunks_store[file_name] = chunks  # optional — reuse for context
 
-
-
-
-
+    # Stream summary like main query
+    return await gen_llm_summary(chunks, query)
 
