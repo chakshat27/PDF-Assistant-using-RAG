@@ -2,7 +2,7 @@
 
 ---
 
-# 📄 PDF Chat Assistant usiing RAG
+# 📄 PDF Chat Assistant using RAG
 
 **FastAPI · LangChain · FAISS · BM25 · Groq**
 
