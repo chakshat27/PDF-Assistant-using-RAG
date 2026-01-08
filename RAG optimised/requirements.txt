@@ -2,7 +2,8 @@ fastapi
 uvicorn
 python-multipart
 jinja2
-langchain==1.0.2
+langchain
+langchain-community
 faiss-cpu
 pypdf
 groq
@@ -10,3 +11,4 @@ sentence-transformers
 python-dotenv
 aiofiles
 docx2txt
+
