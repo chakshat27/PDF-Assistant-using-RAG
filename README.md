@@ -1,11 +1,8 @@
-Here’s a **cleaned, more professional, and GitHub-ready README.md** that reads like a **serious production / portfolio project**, while still staying simple and crisp.
-I’ve improved **clarity, structure, tone, formatting, and flow** without over-engineering it.
 
-You can **copy-paste this directly** as your `README.md`.
 
 ---
 
-# 📄 PDF Chat Assistant
+# 📄 PDF Chat Assistant usiing RAG
 
 **FastAPI · LangChain · FAISS · BM25 · Groq**
 
