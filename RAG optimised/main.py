@@ -8,7 +8,7 @@ import re
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
-from langchain.text_splitter import CharacterTextSplitter
+from langchain_text_splitters import CharacterTextSplitter
 from groq import Groq
 from config import EMBEDDINGS_MODEL, DATA_DIR, TEMPLATES_DIR, GROQ_API_KEY, MODEL_NAME, CHUNK_LIMITS
 
@@ -256,5 +256,6 @@ async def followup_query(file_name: str, query: str):
 
     # Stream summary like main query
     return await gen_llm_summary(chunks, query)
+
 
 
