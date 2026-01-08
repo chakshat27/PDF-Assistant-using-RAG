@@ -128,9 +128,3 @@ http://127.0.0.1:8000
 * Sends only the **most relevant chunks** to the LLM for efficiency and accuracy
 
 ---
-
-
-* 🧹 Refactor the codebase into services
-* 📊 Add performance & scalability notes
-
-Just say the word 👍
