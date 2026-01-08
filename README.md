@@ -64,8 +64,9 @@ User
 ### 1️⃣ Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/pdf-chat-assistant.git
-cd pdf-chat-assistant
+git clone https://github.com/chakshat27/PDF-Assistant-using-RAG.git
+cd PDF-Assistant-using-RAG
+
 ```
 
 ### 2️⃣ Create & Activate Virtual Environment
