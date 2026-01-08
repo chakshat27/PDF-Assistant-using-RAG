@@ -34,3 +34,53 @@ Users can upload PDFs, ask natural language questions, and receive **accurate, s
 
 ## 📁 Project Architecture
 
+FastAPI
+├── File Upload
+├── Background Chunking
+├── Hybrid Retriever Creation
+├── Query Processing
+├── Streaming LLM Response
+
+
+
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1️⃣ Clone Repository
+```bash
+git clone https://github.com/your-username/pdf-chat-assistant.git
+cd pdf-chat-assistant
+```
+
+### 2️⃣ Create Virtual Environment
+python -m venv venv
+source venv/bin/activate   # Windows: venv\Scripts\activate
+
+
+### 3️⃣ Install Dependencies
+pip install -r requirements.txt
+
+
+### 4️⃣ Configure Environment Variables
+# Add your Groq API key inside .env
+
+
+### ▶️ Run the Application
+``` uvicorn app:app --reload ```
+
+
+
+🧪 Usage Flow
+
+Upload a document (PDF/DOCX/TXT)
+
+Wait for background processing
+
+Enter your query
+
+Get live streamed answers
+
+Ask follow-up questions on the same document
+
