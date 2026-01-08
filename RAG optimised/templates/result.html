@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF Q&A Chat</title>
+  <link rel="stylesheet" href="/static/css/background.css">
+  <style>
+    :root {
+      --bg: #0e0e0e;
+      --text: #eaeaea;
+      --accent: #10a37f;
+      --border: #2a2a2a;
+      --code-bg: #1e1e1e;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      transition: background 0.3s, color 0.3s, border 0.3s;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* Transparent Header */
+    header {
+      background: rgba(20, 20, 30, 0.6);
+      backdrop-filter: blur(10px);
+      padding: 1rem 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header div {
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* Chat Area */
+    .chat-box {
+      flex: 1;
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 2rem 8%;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      scroll-behavior: smooth;
+    }
+
+    .chat-message {
+      display: flex;
+      flex-direction: column;
+      animation: messageSlide 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      max-width: 90%;
+    }
+
+    .chat-message.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .chat-message.bot {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .message-content {
+      padding: 1rem 1.5rem;
+      border-radius: 18px;
+      font-size: 1rem;
+      line-height: 1.6;
+      word-wrap: break-word;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Glass/Gradient Bubbles */
+    .chat-message.user .message-content {
+      background: linear-gradient(135deg, var(--accent) 0%, #0d8a6c 100%);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-message.bot .message-content {
+      background: rgba(30, 30, 40, 0.7);
+      backdrop-filter: blur(10px);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom-left-radius: 4px;
+    }
+
+    /* Markdown Styling */
+    .message-content strong {
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .message-content em {
+      font-style: italic;
+    }
+
+    .message-content ul,
+    .message-content ol {
+      margin: 0.5rem 0 0.5rem 1.5rem;
+      padding: 0;
+    }
+
+    .message-content li {
+      margin-bottom: 0.3rem;
+    }
+
+    .message-content code {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9em;
+      color: #a5b4fc;
+    }
+
+    @keyframes messageSlide {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Floating Input Area */
+    .input-area {
+      position: sticky;
+      bottom: 2rem;
+      width: 90%;
+      max-width: 1100px;
+      margin: 0 auto;
+      background: rgba(30, 30, 40, 0.6);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0.8rem;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      z-index: 100;
+    }
+
+    .input-area input {
+      flex: 1;
+      padding: 0.8rem 1rem;
+      background: transparent;
+      border: none;
+      font-size: 1rem;
+      color: white;
+      outline: none;
+    }
+
+    .input-area input::placeholder {
+      color: #aaa;
+    }
+
+    .send-btn {
+      background: linear-gradient(135deg, var(--accent) 0%, #0d8a6c 100%);
+      border: none;
+      color: white;
+      border-radius: 14px;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(16, 163, 127, 0.3);
+    }
+
+    .send-btn:hover {
+      transform: scale(1.05);
+      background-color: #6a1ff0;
+    }
+
+    /* Upload Button inside Input Area */
+    .upload-btn {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: white;
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .upload-btn:hover {
+      background: var(--accent);
+      transform: scale(1.05);
+    }
+
+    @media (max-width: 700px) {
+      .chat-box {
+        padding: 1rem;
+      }
+
+      .message-content {
+        max-width: 95%;
+      }
+
+      .input-area {
+        bottom: 1rem;
+        width: 95%;
+      }
+
+      .upload-btn {
+        width: 40px;
+        height: 40px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+  </header>
+
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="chat-box" id="chat-box">
+    <div class="chat-message user">
+      <div class="message-content">{{ query }}</div>
+    </div>
+    <div class="chat-message bot"></div>
+  </div>
+
+  <div class="input-area">
+    <div class="upload-btn" title="Upload new PDF" onclick="goToUpload()">+</div>
+    <input type="text" id="followup-query" placeholder="Ask something..." />
+    <button class="send-btn" onclick="submitFollowup()">➤</button>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById("chat-box");
+
+    function formatText(text) {
+      // Escape HTML first to prevent issues
+      text = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      // Bold and italic
+      text = text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+      // Convert markdown-like headers
+      text = text.replace(/^#+\s*(.*)$/gm, "<strong>$1</strong><br>");
+
+      // Handle bullet points: "- something"
+      text = text.replace(/^- (.*)$/gm, "<ul><li>$1</li></ul>");
+      text = text.replace(/<\/ul>\s*<ul>/g, "");
+
+      // Inline code
+      text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+      // Math block (between \[ ... \])
+      text = text.replace(
+        /\\\[(.*?)\\\]/gs,
+        '<pre style="background:#f4f4f4; padding:8px; border-radius:6px; overflow-x:auto;">$1</pre>'
+      );
+
+      // Line breaks
+      text = text.replace(/\n{2,}/g, "<br><br>");
+      text = text.replace(/\n/g, "<br>");
+
+      return text;
+    }
+
+    function addMessage(sender, content) {
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("chat-message", sender);
+      const contentDiv = document.createElement("div");
+      contentDiv.classList.add("message-content");
+      contentDiv.innerHTML = formatText(content);
+      msgDiv.appendChild(contentDiv);
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function updateLastBotMessage(content) {
+      const messages = chatBox.getElementsByClassName("chat-message");
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].classList.contains("bot")) {
+          messages[i].querySelector(".message-content").innerHTML = content;
+          chatBox.scrollTop = chatBox.scrollHeight;
+          break;
+        }
+      }
+    }
+
+    async function fetchSummary(file_name, initial = false) {
+      const response = await fetch(`/stream_summary?file_name=${encodeURIComponent(file_name)}`);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let result = "";
+      if (initial) addMessage("bot", "Answer is loading...");
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value);
+        updateLastBotMessage(formatText(result));
+      }
+    }
+
+    // Use Jinja2 tojson to correctly parse special characters in filenames (e.g. apostrophes)
+    const fileNameRaw = {{ file_name | tojson }};
+
+    // sends follow up query from frontend to backend
+    // calls followup_query endpoint from main.py and streams response
+    async function submitFollowup() {
+      const query = document.getElementById("followup-query").value.trim();
+      if (!query) return;
+      addMessage("user", query);
+      addMessage("bot", "...");
+      document.getElementById("followup-query").value = "";
+
+      const response = await fetch(
+        `/followup_query?file_name=${encodeURIComponent(fileNameRaw)}&query=${encodeURIComponent(
+          query
+        )}`
+      );
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let result = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value);
+        updateLastBotMessage(formatText(result));
+      }
+    }
+
+    function goToUpload() {
+      window.location.href = "/";
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitFollowup();
+    });
+
+    // Initial load
+    fetchSummary(fileNameRaw, true);
+  </script>
+  <script type="module" src="/static/js/space_scene.js?v=4"></script>
+</body>
+
+</html>

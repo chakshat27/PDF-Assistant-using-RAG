@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+jinja2
+langchain==1.0.2
+faiss-cpu
+pypdf
+groq
+sentence-transformers
+python-dotenv
+aiofiles
+docx2txt
