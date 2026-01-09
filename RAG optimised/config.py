@@ -1,13 +1,13 @@
 # config.py
 import os
 from dotenv import load_dotenv
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Embedding model for FAISS vector store
-EMBEDDINGS_MODEL = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+EMBEDDINGS_MODEL = FastEmbedEmbeddings(model_name="BAAI/bge-small-en-v1.5")
 
 # Directory paths
 DATA_DIR = "./data/"
@@ -25,3 +25,4 @@ CHUNK_LIMITS = [
     (200, 500, 100),
     (9999, 600, 150),
 ]
+
