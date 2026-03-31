@@ -12,6 +12,10 @@ The system uses a **hybrid retrieval approach (semantic + keyword search)** comb
 
 ---
 
+## Video Walkthrough:
+
+https://github.com/user-attachments/assets/d60069c8-a473-432b-9fcb-89f29c5d7a4c
+
 ## 🚀 Key Features
 
 * 📂 Upload and process **PDF, DOCX, TXT, and Markdown** files
@@ -133,5 +137,7 @@ http://127.0.0.1:8000
 ---
 
 ---
-Video Walkthrough:
-https://github.com/user-attachments/assets/cf33d276-19b0-4f01-8b3e-325777d4ed7b
+
+
+
+
