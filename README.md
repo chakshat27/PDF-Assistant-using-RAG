@@ -107,6 +107,8 @@ http://127.0.0.1:8000
 
 ---
 
+
+
 ## 🧪 Usage Flow
 
 1. Upload a document (PDF / DOCX / TXT / MD)
@@ -129,3 +131,7 @@ http://127.0.0.1:8000
 * Sends only the **most relevant chunks** to the LLM for efficiency and accuracy
 
 ---
+
+---
+Video Walkthrough:
+https://github.com/user-attachments/assets/cf33d276-19b0-4f01-8b3e-325777d4ed7b
